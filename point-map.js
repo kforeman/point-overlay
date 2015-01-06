@@ -234,8 +234,8 @@ PointMap.prototype.setData = function(rawData) {
   this.pointCount_ = rawData.length;
   var points = new Float32Array(this.pointCount_ * 2);
   for (var i = 0; i < this.pointCount_; i++) {
-    points[i * 2] = PointMap.lngToX_(rawData[i].lng);
-    points[i * 2 + 1] = PointMap.latToY_(rawData[i].lat);
+    points[i * 2] = PointMap.lngToX_(rawData[i][0]);
+    points[i * 2 + 1] = PointMap.latToY_(rawData[i][1]);
   }
 
   // create webgl buffer, bind it, and load rawData into it
