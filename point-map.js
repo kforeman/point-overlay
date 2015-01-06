@@ -103,7 +103,7 @@ function PointMap(map) {
 PointMap.DEFAULT_FRAG_SHADER_ = [
     'precision mediump float;',
 
-    'const vec4 color = vec4(.9, .3, .1, 1.);',
+    'const vec4 color = vec4(.25, .5, .75, .5);',
     'const vec4 blank = vec4(0.);',
     'const float filterPixelWidth = 1.4142135623730951;',
 
@@ -314,7 +314,8 @@ PointMap.prototype.update_ = function() {
   gl.vertexAttribPointer(pointProgram.attributes.worldCoord, 2, gl.FLOAT, false,
       8, 0);
 
-  var pointSize = this.pointScale_ * this.resolutionScale_ * scale;
+  //var pointSize = this.pointScale_ * this.resolutionScale_ * scale;
+  var pointSize = this.pointScale_ * 100 * this.resolutionScale_ * Math.pow(scale, 0.4);
   pointProgram.uniforms.pointSize(pointSize);
   pointProgram.uniforms.pointAlpha(this.globalAlpha_);
   pointProgram.uniforms.mapMatrix(this.mapMatrix_);
