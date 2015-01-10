@@ -64,6 +64,7 @@ function PointMap(map) {
    * @private {WebGLBuffer}
    */
   this.pointArrayBuffer_ = null;
+  this.colorBuffer_ = null;
 
   /**
    * The number of points to render
@@ -93,7 +94,7 @@ function PointMap(map) {
    * The base point opacity.
    * @private {number}
    */
-  this.globalAlpha_ = 1;
+  this.globalAlpha_ = 0.5;
 }
 
 /**
@@ -103,18 +104,21 @@ function PointMap(map) {
 PointMap.DEFAULT_FRAG_SHADER_ = [
     'precision mediump float;',
 
-    'const vec4 color = vec4(.25, .5, .75, .5);',
+    //'const vec4 color = vec4(.3, .6, .85, .5);',
     'const vec4 blank = vec4(0.);',
     'const float filterPixelWidth = 1.4142135623730951;',
 
     'varying float alpha;',
     'varying float pointWidth;',
+    'varying lowp vec4 vColor;',
+
 
     'void main() {',
     '  float dist = length(gl_PointCoord - .5);',
     '  float filterWidth = filterPixelWidth / pointWidth;',
     '  float filtered = smoothstep(.5 - filterWidth, .5, dist);',
-    '  gl_FragColor = mix(color, blank, filtered) *  alpha;',
+    //'  gl_FragColor = mix(color, blank, filtered) *  alpha;',
+    '  gl_FragColor = mix(vColor, blank, filtered) * alpha;',
     '}'
 ].join('\n');
 
@@ -124,13 +128,16 @@ PointMap.DEFAULT_FRAG_SHADER_ = [
  */
 PointMap.DEFAULT_VERT_SHADER_ = [
     'attribute vec4 worldCoord;',
+    'attribute vec4 aVertexColor;',
 
     'uniform mat4 mapMatrix;',
     'uniform float pointSize;',
     'uniform float pointAlpha;',
 
+
     'varying float alpha;',
     'varying float pointWidth;',
+    'varying lowp vec4 vColor;',
 
     'void main() {',
     '  // transform world coordinate by matrix uniform variable',
@@ -139,6 +146,8 @@ PointMap.DEFAULT_VERT_SHADER_ = [
     '  pointWidth = pointSize;',
     '  gl_PointSize = pointSize;',
     '  alpha = pointAlpha;',
+
+    '  vColor = aVertexColor;',
     '}'
 ].join('\n');
 
@@ -231,17 +240,37 @@ PointMap.prototype.setData = function(rawData) {
   // }
 
   // json data
-  this.pointCount_ = rawData.length;
+  /*this.pointCount_ = rawData.length;
   var points = new Float32Array(this.pointCount_ * 2);
   for (var i = 0; i < this.pointCount_; i++) {
     points[i * 2] = PointMap.lngToX_(rawData[i][0]);
     points[i * 2 + 1] = PointMap.latToY_(rawData[i][1]);
+  }*/
+  this.arrayCount_ = rawData.length;
+  this.pointCount_ = rawData.reduce(function(p,c) { return p+c.coords.length }, 0);
+  var points = new Float32Array(this.pointCount_ * 2),
+      colors = new Float32Array(this.pointCount_ * 4),
+      k = 0;
+  for (var i = 0; i < this.arrayCount_; i++) {
+    for (var j = 0; j < rawData[i].coords.length; j++) {
+      points[k * 2] = PointMap.lngToX_(rawData[i].coords[j][0]);
+      points[k * 2 + 1] = PointMap.latToY_(rawData[i].coords[j][1]);
+      colors[k * 4] = rawData[i].color[0];
+      colors[k * 4 + 1] = rawData[i].color[1];
+      colors[k * 4 + 2] = rawData[i].color[2];
+      colors[k * 4 + 3] = 1.0;
+      k += 1;
+    }
   }
 
   // create webgl buffer, bind it, and load rawData into it
   this.pointArrayBuffer_ = this.gl_.createBuffer();
   this.gl_.bindBuffer(this.gl_.ARRAY_BUFFER, this.pointArrayBuffer_);
   this.gl_.bufferData(this.gl_.ARRAY_BUFFER, points, this.gl_.STATIC_DRAW);
+
+  this.colorArrayBuffer_ = this.gl_.createBuffer();
+  this.gl_.bindBuffer(this.gl_.ARRAY_BUFFER, this.colorArrayBuffer_);
+  this.gl_.bufferData(this.gl_.ARRAY_BUFFER, colors, this.gl_.STATIC_DRAW);
 
   this.run_();
 };
@@ -261,6 +290,7 @@ PointMap.prototype.run_ = function() {
 
   // TODO(bckenny): move this
   this.gl_.enableVertexAttribArray(this.pointProgram_.attributes.worldCoord);
+  this.gl_.enableVertexAttribArray(this.pointProgram_.attributes.aVertexColor);
 
   this.canvasLayer_.setUpdateHandler(this.update_.bind(this));
   this.scheduleUpdate();
@@ -273,6 +303,7 @@ PointMap.prototype.run_ = function() {
 PointMap.prototype.resize_ = function() {
   var canvasWidth = this.canvasLayer_.canvas.width;
   var canvasHeight = this.canvasLayer_.canvas.height;
+  //console.log(this.map_)
   var resolutionScale = this.resolutionScale_;
 
   this.gl_.viewport(0, 0, canvasWidth, canvasHeight);
@@ -297,7 +328,7 @@ PointMap.prototype.update_ = function() {
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   var mapProjection = this.map_.getProjection();
-  
+
   // copy pixel->webgl matrix
   this.mapMatrix_.set(this.pixelsToWebGLMatrix_);
 
@@ -311,11 +342,12 @@ PointMap.prototype.update_ = function() {
 
   // TODO(bckenny): if we only have one buffer, could bind once
   gl.bindBuffer(gl.ARRAY_BUFFER, this.pointArrayBuffer_);
-  gl.vertexAttribPointer(pointProgram.attributes.worldCoord, 2, gl.FLOAT, false,
-      8, 0);
+  gl.vertexAttribPointer(pointProgram.attributes.worldCoord, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.colorArrayBuffer_);
+  gl.vertexAttribPointer(pointProgram.attributes.aVertexColor, 4, gl.FLOAT, false, 0, 0);
 
   //var pointSize = this.pointScale_ * this.resolutionScale_ * scale;
-  var pointSize = this.pointScale_ * 100 * this.resolutionScale_ * Math.pow(scale, 0.4);
+  var pointSize = this.pointScale_ * 200 * this.resolutionScale_ * Math.pow(scale, 0.4);
   pointProgram.uniforms.pointSize(pointSize);
   pointProgram.uniforms.pointAlpha(this.globalAlpha_);
   pointProgram.uniforms.mapMatrix(this.mapMatrix_);
