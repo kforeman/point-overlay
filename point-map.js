@@ -94,7 +94,7 @@ function PointMap(map) {
    * The base point opacity.
    * @private {number}
    */
-  this.globalAlpha_ = 0.5;
+  this.globalAlpha_ = 0.4;
 }
 
 /**
@@ -301,16 +301,21 @@ PointMap.prototype.run_ = function() {
  * @private
  */
 PointMap.prototype.resize_ = function() {
-  var canvasWidth = this.canvasLayer_.canvas.width;
+  /*var canvasWidth = this.canvasLayer_.canvas.width;
   var canvasHeight = this.canvasLayer_.canvas.height;
-  //console.log(this.map_)
+  console.log(canvasHeight, this.canvasLayer_.getMap().getDiv().offsetHeight * this.resolutionScale_)*/
+  var mapHeight = this.canvasLayer_.getMap().getDiv().offsetHeight * this.resolutionScale_;
+  var mapWidth = this.canvasLayer_.getMap().getDiv().offsetWidth * this.resolutionScale_;
   var resolutionScale = this.resolutionScale_;
 
-  this.gl_.viewport(0, 0, canvasWidth, canvasHeight);
+  // this.gl_.viewport(0, 0, canvasWidth, canvasHeight);
+  this.gl_.viewport(0, 0, mapWidth, mapHeight);
 
   this.pixelsToWebGLMatrix_.set([
-    2 * resolutionScale / canvasWidth, 0, 0, 0,
-    0, -2 * resolutionScale / canvasHeight, 0, 0,
+    // 2 * resolutionScale / canvasWidth, 0, 0, 0,
+    2 * resolutionScale / mapWidth, 0, 0, 0,
+    // 0, -2 * resolutionScale / canvasHeight, 0, 0,
+    0, -2 * resolutionScale / mapHeight, 0, 0,
     0, 0, 0, 0,
     -1, 1, 0, 1
   ]);
